@@ -1,9 +1,13 @@
 package database
 
 import (
+	"path/filepath"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"os"
 )
+
+var DB *gorm.DB
 
 type ClipboardData struct {
 	gorm.Model
@@ -14,20 +18,27 @@ type ClipboardData struct {
 	FilePath    string `json:"filePath"`
 }
 
-var DB *gorm.DB
-
 func InitDatabase() error {
-	var err error
-	DB, err = gorm.Open(sqlite.Open("clipboard.db"), &gorm.Config{})
+	// Ensure the Server/Database directory exists
+	err := os.MkdirAll("Server/Database", os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	DB.AutoMigrate(&ClipboardData{})
-	return nil
+	// Set the database path
+	dbPath := filepath.Join("Server/Database", "Clipboard.db")
+
+	// Open the SQLite database
+	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+
+	// Auto migrate the ClipboardData struct
+	return DB.AutoMigrate(&ClipboardData{})
 }
 
-func CreateEntry(dataType, payloadData, postDevice, fileName, filePath string) (*ClipboardData, error) {
+func CreateEntry(dataType, payloadData, postDevice, fileName, filePath string) (ClipboardData, error) {
 	newEntry := ClipboardData{
 		DataType:    dataType,
 		PayloadData: payloadData,
@@ -37,8 +48,8 @@ func CreateEntry(dataType, payloadData, postDevice, fileName, filePath string) (
 	}
 
 	if err := DB.Create(&newEntry).Error; err != nil {
-		return nil, err
+		return ClipboardData{}, err
 	}
 
-	return &newEntry, nil
+	return newEntry, nil
 }
