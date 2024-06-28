@@ -2,7 +2,11 @@ module github.com/AryalKTM/UniClip
 
 go 1.22.4
 
-require github.com/gofiber/fiber/v2 v2.52.4
+require (
+	github.com/gofiber/fiber/v2 v2.52.4
+	gorm.io/driver/sqlite v1.5.6
+	gorm.io/gorm v1.25.10
+)
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
@@ -19,6 +23,4 @@ require (
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
-	gorm.io/driver/sqlite v1.5.6 // indirect
-	gorm.io/gorm v1.25.10 // indirect
 )

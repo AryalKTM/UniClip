@@ -4,26 +4,26 @@ import (
 	"github.com/AryalKTM/UniClip/Server/Clipboard"
 	"github.com/AryalKTM/UniClip/Server/Database"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"log"
 )
 
-func status(c *fiber.Ctx) error {
-	return c.SendString("Server is Running! Send your Request")
-}
-
-func setupRoutes(app *fiber.App) {
-	app.Get("/", status)
-	app.Get("/api/content", clipboard.GetAllContent)
-	app.Post("/api/content", clipboard.SaveContent)
-}
-
 func main() {
-	app := fiber.New()
-	
-	dbErr := database.InitDatabase()
-	if dbErr != nil {
-		panic(dbErr)
+	// Initialize the database
+	if err := database.InitDatabase(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	setupRoutes(app)
-	app.Listen(":3000")
+	// Initialize the Fiber app
+	app := fiber.New()
+
+	// Middleware
+	app.Use(logger.New())
+
+	// Routes
+	app.Get("/clipboard", clipboard.GetAllContent)
+	app.Post("/clipboard", clipboard.SaveContent)
+
+	// Start server
+	log.Fatal(app.Listen(":3000"))
 }

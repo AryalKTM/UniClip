@@ -1,59 +1,54 @@
 package clipboard
 
 import (
-	database "github.com/AryalKTM/UniClip/Server/Database"
+	"github.com/AryalKTM/UniClip/Server/Database"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	// "github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 func GetAllContent(c *fiber.Ctx) error {
-	return c.SendString("All Content")
+	var contents []database.ClipboardData
+	database.DB.Find(&contents)
+	return c.JSON(contents)
 }
 
 func SaveContent(c *fiber.Ctx) error {
-	newContent := new(database.clipboardDataStruct)
+	newContent := new(database.ClipboardData)
 
-	err := c.BodyParser(newContent)
-	if err != nil {
-		c.Status(400).JSON(&fiber.Map{
+	if form, err := c.MultipartForm(); err == nil {
+		files := form.File["file"]
+		for _, file := range files {
+			// Save the file to the server
+			filePath := "./uploads/" + file.Filename
+			if err := c.SaveFile(file, filePath); err != nil {
+				return c.Status(500).SendString(err.Error())
+			}
+
+			newContent.FileName = file.Filename
+			newContent.FilePath = filePath
+		}
+	}
+
+	if err := c.BodyParser(newContent); err != nil {
+		return c.Status(400).JSON(&fiber.Map{
 			"success": false,
-			"message": err,
+			"message": err.Error(),
 			"data":    nil,
 		})
-		return err
 	}
 
-	result, err := database.CreateEntry(newContent.DataType, newContent.PayloadData, newContent.PostDevice)
+	result, err := database.CreateEntry(newContent.DataType, newContent.PayloadData, newContent.PostDevice, newContent.FileName, newContent.FilePath)
 	if err != nil {
-		c.Status(400).JSON(&fiber.Map{
+		return c.Status(400).JSON(&fiber.Map{
 			"success": false,
-			"message": err,
+			"message": err.Error(),
 			"data":    nil,
 		})
-		return err
 	}
 
-	c.Status(200).JSON(&fiber.Map{
-		"success": false,
-		"message": err,
-		"data":    nil,
-	})
-	return nil
-}
-
-func CreateEntry(DataType string, PayloadData string, PostDevice string) {
-	var newEntry = clipboardDataStruct{
-		dataType:    DataType,
-		payloadData: PayloadData,
-		postDevice:  PostDevice,
-	}
-
-	db, err := gorm.Open(sqlite.Open("Clipboard.db"), &gorm.Config{})
-	if err != nil {
-		return newEntry, err
-	}
-	db.Create(&clipboardDataStruct{
-		DataType: DataType,
+	return c.Status(200).JSON(&fiber.Map{
+		"success": true,
+		"message": "Content saved successfully",
+		"data":    result,
 	})
 }
