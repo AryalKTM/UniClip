@@ -20,13 +20,13 @@ type ClipboardData struct {
 
 func InitDatabase() error {
 	// Ensure the Server/Database directory exists
-	err := os.MkdirAll("Server/Database", os.ModePerm)
+	err := os.MkdirAll("Database", os.ModePerm)
 	if err != nil {
 		return err
 	}
 
 	// Set the database path
-	dbPath := filepath.Join("Server/Database", "Clipboard.db")
+	dbPath := filepath.Join("Database", "Clipboard.db")
 
 	// Open the SQLite database
 	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
