@@ -3,7 +3,7 @@ package clipboard
 import (
 	"github.com/AryalKTM/UniClip/Server/Database"
 	"github.com/gofiber/fiber/v2"
-	// "github.com/gofiber/fiber/v2/middleware/logger"
+	"path/filepath"
 )
 
 func GetAllContent(c *fiber.Ctx) error {
@@ -19,7 +19,7 @@ func SaveContent(c *fiber.Ctx) error {
 		files := form.File["file"]
 		for _, file := range files {
 			// Save the file to the server
-			filePath := "./uploads/" + file.Filename
+			filePath := filepath.Join("Server/uploads", file.Filename)
 			if err := c.SaveFile(file, filePath); err != nil {
 				return c.Status(500).SendString(err.Error())
 			}
