@@ -15,8 +15,8 @@ func main() {
 	}
 
 	// Create uploads directory if not exists
-	if _, err := os.Stat("Server/uploads"); os.IsNotExist(err) {
-		err := os.MkdirAll("Server/uploads", os.ModePerm)
+	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
+		err := os.MkdirAll("uploads", os.ModePerm)
 		if err != nil {
 			log.Fatalf("Failed to create uploads directory: %v", err)
 		}

@@ -10,7 +10,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
-	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/atotto/clipboard v0.1.4
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
