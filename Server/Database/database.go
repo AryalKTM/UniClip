@@ -33,8 +33,7 @@ func InitDatabase() error {
 	if err != nil {
 		return err
 	}
-
-	// Auto migrate the ClipboardData struct
+// Auto migrate the ClipboardData struct
 	return DB.AutoMigrate(&ClipboardData{})
 }
 

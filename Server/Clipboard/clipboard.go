@@ -3,41 +3,15 @@ package clipboard
 import (
 	"github.com/AryalKTM/UniClip/Server/Database"
 	"github.com/gofiber/fiber/v2"
-<<<<<<< HEAD
-	"path/filepath"
-=======
 	"os"
 	"strconv"
->>>>>>> 3cd06a7e373914e88712bdc58841324cd9e5064e
 )
 
 func GetAllContent(c *fiber.Ctx) error {
 	var contents []database.ClipboardData
 
-<<<<<<< HEAD
-func SaveContent(c *fiber.Ctx) error {
-	newContent := new(database.ClipboardData)
-
-	if form, err := c.MultipartForm(); err == nil {
-		files := form.File["file"]
-		for _, file := range files {
-			// Save the file to the server
-			filePath := filepath.Join("Server/uploads", file.Filename)
-			if err := c.SaveFile(file, filePath); err != nil {
-				return c.Status(500).SendString(err.Error())
-			}
-
-			newContent.FileName = file.Filename
-			newContent.FilePath = filePath
-		}
-	}
-
-	if err := c.BodyParser(newContent); err != nil {
-		return c.Status(400).JSON(&fiber.Map{
-=======
 	if err := database.DB.Find(&contents).Error; err != nil {
 		return c.Status(500).JSON(&fiber.Map{
->>>>>>> 3cd06a7e373914e88712bdc58841324cd9e5064e
 			"success": false,
 			"message": err.Error(),
 		})
