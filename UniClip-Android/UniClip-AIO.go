@@ -1,41 +1,39 @@
+//go:build windows
+// +build windows
+
 package main
 
 import (
-	"log"
-
 	"bufio"
 	"bytes"
 	"compress/flate"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
+	"encoding/base64"
 	"encoding/gob"
-	"errors"
 	"fmt"
-
+	"golang.org/x/crypto/scrypt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
-
-	"encoding/base64"
 	"time"
 
-	"golang.org/x/crypto/scrypt"
-
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 	"github.com/getlantern/systray"
 	"golang.org/x/sys/windows/registry"
+
+	"crypto/rand"
+	"errors"
 )
 
 var (
 	secondsBetweenChecksForClipChange = 1
-	helpMsg                           = `Uniclip - Universal Clipboard
+	helpMsg                           = `UniClip - Universal Clipboard
 With Uniclip, you can copy from one device and paste on another.
 
 Usage: uniclip [--secure/-s] [--debug/-d] [ <address> | --help/-h ]
@@ -59,33 +57,7 @@ Refer to https://github.com/quackduck/uniclip for more information`
 )
 
 func main() {
-	if runtime.GOOS == "darwin" {
-		startMacOSMenuBar()
-	} else if runtime.GOOS == "windows" {
-		startWindowsSystemTray()
-	} else {
-		fmt.Println("Unsupported OS")
-	}
-}
-
-func startMacOSMenuBar() {
-	a := app.New()
-	w := a.NewWindow("Uniclip")
-
-	content := container.NewVBox(
-		widget.NewLabel("Uniclip - Universal Clipboard"),
-		widget.NewButton("Start Clipboard", func() {
-			go makeServer()
-		}),
-		widget.NewButton("Connect Clipboard", func() {
-			go ConnectToServer("localhost:8050")
-		}),
-		widget.NewButton("Start on Login", func() {
-			addToMacOSLoginItems()
-		}),
-	)
-	w.SetContent(content)
-	w.ShowAndRun()
+	startWindowsSystemTray()
 }
 
 func startWindowsSystemTray() {
@@ -130,16 +102,6 @@ func getIcon(s string) []byte {
 	return icon
 }
 
-func addToMacOSLoginItems() {
-	script := `tell application "System Events" to make login item at end with properties {path:"/path/to/your/app", hidden:false}`
-	cmd := exec.Command("osascript", "-e", script)
-	if err := cmd.Run(); err != nil {
-		log.Println("Failed to add to login items:", err)
-	} else {
-		log.Println("Successfully added to login items")
-	}
-}
-
 func addToWindowsStartup() {
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.SET_VALUE)
 	if err != nil {
@@ -163,6 +125,15 @@ func addToWindowsStartup() {
 }
 
 // Implement makeServer and ConnectToServer functions based on your existing logic
+func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
+	for i, arg := range os.Args {
+		if arg == "--"+long || arg == "-"+short {
+			return true, i
+		}
+	}
+	return false, 0
+}
+
 func makeServer() {
 	fmt.Println("Starting a new clipboard")
 	listenPortString := ":"
@@ -588,15 +559,6 @@ func debug(a ...interface{}) {
 	if printDebugInfo {
 		fmt.Println("verbose:", a)
 	}
-}
-
-func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
-	for i, arg := range os.Args {
-		if arg == "--"+long || arg == "-"+short {
-			return true, i
-		}
-	}
-	return false, 0
 }
 
 // keep order
