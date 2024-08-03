@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"bufio"
 	"bytes"
 	"compress/flate"
@@ -10,20 +12,25 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/ssh/terminal"
+
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
-	"time"
+
 	"encoding/base64"
+	"time"
 
 	"golang.org/x/crypto/scrypt"
+
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
+	"github.com/getlantern/systray"
+	"golang.org/x/sys/windows/registry"
 )
 
 var (
@@ -51,64 +58,111 @@ Refer to https://github.com/quackduck/uniclip for more information`
 	port           = 8050
 )
 
-// TODO: Add a way to reconnect (if computer goes to sleep)
 func main() {
-	if len(os.Args) > 4 {
-		handleError(errors.New("too many arguments"))
-		fmt.Println(helpMsg)
-		return
+	if runtime.GOOS == "darwin" {
+		startMacOSMenuBar()
+	} else if runtime.GOOS == "windows" {
+		startWindowsSystemTray()
+	} else {
+		fmt.Println("Unsupported OS")
 	}
-	if hasOption, _ := argsHaveOption("help", "h"); hasOption {
-		fmt.Println(helpMsg)
-		return
-	}
-	if hasOption, i := argsHaveOption("debug", "d"); hasOption {
-		printDebugInfo = true
-		os.Args = removeElemFromSlice(os.Args, i) // delete the debug option and run again
-		main()
-		return
-	}
-	// --secure encrypts your data
-	if hasOption, i := argsHaveOption("secure", "s"); hasOption {
-		secure = true
-		os.Args = removeElemFromSlice(os.Args, i) // delete the secure option and run again
-		fmt.Print("Password for --secure: ")
-		password, _ = terminal.ReadPassword(int(syscall.Stdin))
-		fmt.Println()
-		main()
-		return
-	}
-	if hasOption, i := argsHaveOption("port", "p"); hasOption {
-		os.Args = removeElemFromSlice(os.Args, i) // delete the port option
-		if port > 0 {
-			fmt.Fprintln(os.Stderr, "Only one port number allowed")
-			os.Exit(1)
-		}
-		if len(os.Args) < i+1 {
-			fmt.Fprintln(os.Stderr, "Missing port number")
-			os.Exit(1)
-		}
-		requestedPort, err := strconv.Atoi(os.Args[i])
-		if err != nil || requestedPort < 1 || requestedPort > 65534 {
-			fmt.Fprintln(os.Stderr, "Invalid port number")
-			os.Exit(1)
-		}
-		os.Args = removeElemFromSlice(os.Args, i)
-		port = requestedPort
-		main()
-		return
-	}
-	if hasOption, _ := argsHaveOption("version", "v"); hasOption {
-		fmt.Println(version)
-		return
-	}
-	if len(os.Args) == 2 {
-		ConnectToServer(os.Args[1])
-		return
-	}
-	makeServer()
 }
 
+func startMacOSMenuBar() {
+	a := app.New()
+	w := a.NewWindow("Uniclip")
+
+	content := container.NewVBox(
+		widget.NewLabel("Uniclip - Universal Clipboard"),
+		widget.NewButton("Start Clipboard", func() {
+			go makeServer()
+		}),
+		widget.NewButton("Connect Clipboard", func() {
+			go ConnectToServer("localhost:8050")
+		}),
+		widget.NewButton("Start on Login", func() {
+			addToMacOSLoginItems()
+		}),
+	)
+	w.SetContent(content)
+	w.ShowAndRun()
+}
+
+func startWindowsSystemTray() {
+	onReady := func() {
+		systray.SetIcon(getIcon("icon.ico"))
+		systray.SetTitle("Uniclip")
+		systray.SetTooltip("Uniclip - Universal Clipboard")
+
+		mStart := systray.AddMenuItem("Start Clipboard", "Start the clipboard server")
+		mConnect := systray.AddMenuItem("Connect Clipboard", "Connect to a clipboard server")
+		mStartOnLogin := systray.AddMenuItem("Start on Login", "Start application on login")
+		mQuit := systray.AddMenuItem("Quit", "Quit the application")
+
+		go func() {
+			for {
+				select {
+				case <-mStart.ClickedCh:
+					go makeServer()
+				case <-mConnect.ClickedCh:
+					go ConnectToServer("localhost:8050")
+				case <-mStartOnLogin.ClickedCh:
+					addToWindowsStartup()
+				case <-mQuit.ClickedCh:
+					systray.Quit()
+				}
+			}
+		}()
+	}
+
+	onExit := func() {
+		// Cleanup code
+	}
+
+	systray.Run(onReady, onExit)
+}
+
+func getIcon(s string) []byte {
+	icon, err := ioutil.ReadFile(s)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return icon
+}
+
+func addToMacOSLoginItems() {
+	script := `tell application "System Events" to make login item at end with properties {path:"/path/to/your/app", hidden:false}`
+	cmd := exec.Command("osascript", "-e", script)
+	if err := cmd.Run(); err != nil {
+		log.Println("Failed to add to login items:", err)
+	} else {
+		log.Println("Successfully added to login items")
+	}
+}
+
+func addToWindowsStartup() {
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.SET_VALUE)
+	if err != nil {
+		log.Println("Failed to open registry key:", err)
+		return
+	}
+	defer k.Close()
+
+	exePath, err := exec.LookPath("Uniclip.exe")
+	if err != nil {
+		log.Println("Failed to find executable path:", err)
+		return
+	}
+
+	err = k.SetStringValue("Uniclip", exePath)
+	if err != nil {
+		log.Println("Failed to add to startup:", err)
+	} else {
+		log.Println("Successfully added to startup")
+	}
+}
+
+// Implement makeServer and ConnectToServer functions based on your existing logic
 func makeServer() {
 	fmt.Println("Starting a new clipboard")
 	listenPortString := ":"
@@ -135,16 +189,6 @@ func makeServer() {
 	}
 }
 
-// Handle a client as a server
-func HandleClient(c net.Conn) {
-	w := bufio.NewWriter(c)
-	listOfClients = append(listOfClients, w)
-	defer c.Close()
-	go MonitorSentClips(bufio.NewReader(c))
-	MonitorLocalClip(w)
-}
-
-// Connect to the server (which starts a new clipboard)
 func ConnectToServer(address string) {
 	c, err := net.Dial("tcp4", address)
 	if c == nil {
@@ -160,6 +204,23 @@ func ConnectToServer(address string) {
 	fmt.Println("Connected to the clipboard")
 	go MonitorSentClips(bufio.NewReader(c))
 	MonitorLocalClip(bufio.NewWriter(c))
+}
+
+func handleError(err error) {
+	if err == io.EOF {
+		fmt.Println("Disconnected")
+	} else {
+		fmt.Fprintln(os.Stderr, "error: ["+err.Error()+"]")
+	}
+}
+
+// Handle a client as a server
+func HandleClient(c net.Conn) {
+	w := bufio.NewWriter(c)
+	listOfClients = append(listOfClients, w)
+	defer c.Close()
+	go MonitorSentClips(bufio.NewReader(c))
+	MonitorLocalClip(w)
 }
 
 func MonitorLocalClip(w *bufio.Writer) {
@@ -184,13 +245,13 @@ func MonitorSentClips(r *bufio.Reader) {
 	for {
 		// Receive metadata first
 		err := gob.NewDecoder(r).Decode(&isImage)
-        if err != nil {
-            if err == io.EOF {
-                return // no need to monitor: disconnected
-            }
-            handleError(err)
-            continue // continue getting next message
-        }
+		if err != nil {
+			if err == io.EOF {
+				return // no need to monitor: disconnected
+			}
+			handleError(err)
+			continue // continue getting next message
+		}
 
 		// Receive actual clipboard data
 		err = gob.NewDecoder(r).Decode(&foreignClipboardBytes)
@@ -280,7 +341,6 @@ func setLocalClipAsImage(b64Data string) error {
 	}
 	return copyCmd.Wait()
 }
-
 
 // sendClipboard compresses and then if secure is enabled, encrypts data
 func sendClipboard(w *bufio.Writer, clipboard string) error {
@@ -427,48 +487,47 @@ func runGetClipCommand() string {
 }
 
 func getLocalClip() string {
-    var clipContent string
-    switch runtime.GOOS {
-    case "darwin":
-        out, err := exec.Command("pbpaste").Output()
-        if err != nil {
-            handleError(err)
-        }
-        clipContent = string(out)
-    case "windows":
-        out, err := exec.Command("powershell.exe", "-command", "Get-Clipboard").Output()
-        if err != nil {
-            handleError(err)
-        }
-        clipContent = string(out)
-    default:
-        out, err := exec.Command("xclip", "-selection", "clipboard", "-o").Output()
-        if err != nil {
-            handleError(err)
-        }
-        clipContent = string(out)
-    }
+	var clipContent string
+	switch runtime.GOOS {
+	case "darwin":
+		out, err := exec.Command("pbpaste").Output()
+		if err != nil {
+			handleError(err)
+		}
+		clipContent = string(out)
+	case "windows":
+		out, err := exec.Command("powershell.exe", "-command", "Get-Clipboard").Output()
+		if err != nil {
+			handleError(err)
+		}
+		clipContent = string(out)
+	default:
+		out, err := exec.Command("xclip", "-selection", "clipboard", "-o").Output()
+		if err != nil {
+			handleError(err)
+		}
+		clipContent = string(out)
+	}
 
-    // Check if clipContent is a file path
-    if fileExists(clipContent) {
-        // Read file content
-        data, err := os.ReadFile(clipContent)
-        if err != nil {
-            handleError(err)
-            return ""
-        }
-        // Encode file content
-        clipContent = "file://" + base64.StdEncoding.EncodeToString(data)
-    }
+	// Check if clipContent is a file path
+	if fileExists(clipContent) {
+		// Read file content
+		data, err := os.ReadFile(clipContent)
+		if err != nil {
+			handleError(err)
+			return ""
+		}
+		// Encode file content
+		clipContent = "file://" + base64.StdEncoding.EncodeToString(data)
+	}
 
-    return clipContent
+	return clipContent
 }
 
 func fileExists(filename string) bool {
-    info, err := os.Stat(filename)
-    return err == nil && !info.IsDir()
+	info, err := os.Stat(filename)
+	return err == nil && !info.IsDir()
 }
-
 
 func setLocalClip(s string) {
 	var copyCmd *exec.Cmd
@@ -523,14 +582,6 @@ func getOutboundIP() net.IP {
 	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP
-}
-
-func handleError(err error) {
-	if err == io.EOF {
-		fmt.Println("Disconnected")
-	} else {
-		fmt.Fprintln(os.Stderr, "error: ["+err.Error()+"]")
-	}
 }
 
 func debug(a ...interface{}) {
