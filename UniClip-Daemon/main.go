@@ -427,12 +427,48 @@ func runGetClipCommand() string {
 }
 
 func getLocalClip() string {
-	str := runGetClipCommand()
-	//for ; str == ""; str = runGetClipCommand() { // wait until it's not empty
-	//	time.Sleep(time.Millisecond * 100)
-	//}
-	return str
+    var clipContent string
+    switch runtime.GOOS {
+    case "darwin":
+        out, err := exec.Command("pbpaste").Output()
+        if err != nil {
+            handleError(err)
+        }
+        clipContent = string(out)
+    case "windows":
+        out, err := exec.Command("powershell.exe", "-command", "Get-Clipboard").Output()
+        if err != nil {
+            handleError(err)
+        }
+        clipContent = string(out)
+    default:
+        out, err := exec.Command("xclip", "-selection", "clipboard", "-o").Output()
+        if err != nil {
+            handleError(err)
+        }
+        clipContent = string(out)
+    }
+
+    // Check if clipContent is a file path
+    if fileExists(clipContent) {
+        // Read file content
+        data, err := os.ReadFile(clipContent)
+        if err != nil {
+            handleError(err)
+            return ""
+        }
+        // Encode file content
+        clipContent = "file://" + base64.StdEncoding.EncodeToString(data)
+    }
+
+    return clipContent
 }
+
+func fileExists(filename string) bool {
+    info, err := os.Stat(filename)
+    return err == nil && !info.IsDir()
+}
+
 
 func setLocalClip(s string) {
 	var copyCmd *exec.Cmd
