@@ -2,34 +2,25 @@ package main
 
 import (
 	"bufio"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
+
 	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
+
 	"strings"
 	"time"
-
-	"golang.org/x/crypto/scrypt"
 )
 
 var (
 	secondsBetweenChecksForClipChange = 1
-	listOfClients  = make([]*bufio.Writer, 0)
-	localClipboard string
-	printDebugInfo = false
-	cryptoStrength = 16384
-	secure         = false
-	password       []byte
-	port           = 8085
+	listOfClients                     = make([]*bufio.Writer, 0)
+	localClipboard                    string
+	printDebugInfo                    = false
 )
 
 func getIcon(iconPath string) []byte {
@@ -38,59 +29,6 @@ func getIcon(iconPath string) []byte {
 		log.Fatal(err)
 	}
 	return icon
-}
-
-func makeServer() {
-	fmt.Println("Starting a new clipboard")
-	listenPortString := ":"
-	if port > 0 {
-		listenPortString = ":" + strconv.Itoa(port)
-	}
-	l, err := net.Listen("tcp4", listenPortString) //nolint // complains about binding to all interfaces
-	if err != nil {
-		handleError(err)
-		return
-	}
-	defer l.Close()
-	port := strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
-	fmt.Println("Run", "`uniclip", getOutboundIP().String()+":"+port+"`", "to join this clipboard")
-	fmt.Println()
-	for {
-		c, err := l.Accept()
-		if err != nil {
-			handleError(err)
-			return
-		}
-		fmt.Println("Connected to device at " + c.RemoteAddr().String())
-		go HandleClient(c)
-	}
-}
-
-// Handle a client as a server
-func HandleClient(c net.Conn) {
-	w := bufio.NewWriter(c)
-	listOfClients = append(listOfClients, w)
-	defer c.Close()
-	go MonitorSentClips(bufio.NewReader(c))
-	MonitorLocalClip(w)
-}
-
-// Connect to the server (which starts a new clipboard)
-func ConnectToServer(address string) {
-	c, err := net.Dial("tcp4", address)
-	if c == nil {
-		handleError(err)
-		fmt.Println("Could not connect to", address)
-		return
-	}
-	if err != nil {
-		handleError(err)
-		return
-	}
-	defer func() { _ = c.Close() }()
-	fmt.Println("Connected to the clipboard")
-	go MonitorSentClips(bufio.NewReader(c))
-	MonitorLocalClip(bufio.NewWriter(c))
 }
 
 // monitors for changes to the local clipboard and writes them to w
@@ -179,63 +117,6 @@ func sendClipboard(w *bufio.Writer, clipboard string) error {
 }
 
 // Thanks to https://bruinsslot.jp/post/golang-crypto/ for crypto logic
-func encrypt(key, data []byte) ([]byte, error) {
-	key, salt, err := deriveKey(key, nil)
-	if err != nil {
-		return nil, err
-	}
-	blockCipher, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(blockCipher)
-	if err != nil {
-		return nil, err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = rand.Read(nonce); err != nil {
-		return nil, err
-	}
-	ciphertext := gcm.Seal(nonce, nonce, data, nil)
-	ciphertext = append(ciphertext, salt...)
-	return ciphertext, nil
-}
-
-func decrypt(key, data []byte) ([]byte, error) {
-	salt, data := data[len(data)-32:], data[:len(data)-32]
-	key, _, err := deriveKey(key, salt)
-	if err != nil {
-		return nil, err
-	}
-	blockCipher, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(blockCipher)
-	if err != nil {
-		return nil, err
-	}
-	nonce, ciphertext := data[:gcm.NonceSize()], data[gcm.NonceSize():]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, err
-	}
-	return plaintext, nil
-}
-
-func deriveKey(password, salt []byte) ([]byte, []byte, error) {
-	if salt == nil {
-		salt = make([]byte, 32)
-		if _, err := rand.Read(salt); err != nil {
-			return nil, nil, err
-		}
-	}
-	key, err := scrypt.Key(password, salt, cryptoStrength, 8, 1, 32)
-	if err != nil {
-		return nil, nil, err
-	}
-	return key, salt, nil
-}
 
 func runGetClipCommand() string {
 	var out []byte
@@ -320,26 +201,6 @@ func setLocalClip(s string) {
 	if err = copyCmd.Wait(); err != nil {
 		handleError(err)
 		return
-	}
-}
-
-func getOutboundIP() net.IP {
-	// https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go/37382208#37382208
-	conn, err := net.Dial("udp", "8.8.8.8:80") // address can be anything. Doesn't even have to exist
-	if err != nil {
-		handleError(err)
-		return nil
-	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP
-}
-
-func handleError(err error) {
-	if err == io.EOF {
-		fmt.Println("Disconnected")
-	} else {
-		fmt.Fprintln(os.Stderr, "error: ["+err.Error()+"]")
 	}
 }
 
