@@ -14,7 +14,7 @@ import (
 
 	"strings"
 	"time"
-)
+) 
 
 var (
 	secondsBetweenChecksForClipChange = 1
