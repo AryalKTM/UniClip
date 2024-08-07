@@ -14,7 +14,7 @@ import (
 
 	"strings"
 	"time"
-) 
+)
 
 var (
 	secondsBetweenChecksForClipChange = 1
@@ -35,12 +35,17 @@ func getIcon(iconPath string) []byte {
 func MonitorLocalClip(w *bufio.Writer) {
 	for {
 		localClipboard = getLocalClip()
-		//debug("clipboard changed so sending it. localClipboard =", localClipboard)
-		err := sendClipboard(w, localClipboard)
-		if err != nil {
-			handleError(err)
-			return
+		isFilePath := strings.HasPrefix(localClipboard, `"`) && strings.HasSuffix(localClipboard, `"`)
+		if isFilePath {
+			sendFile(localClipboard, /*connection*/)
+		} else {
+			err := sendClipboard(w, localClipboard)
+			if err != nil {
+				handleError(err)
+				return
+			}
 		}
+		//debug("clipboard changed so sending it. localClipboard =", localClipboard)
 		for localClipboard == getLocalClip() {
 			time.Sleep(time.Second * time.Duration(secondsBetweenChecksForClipChange))
 		}

@@ -3,8 +3,10 @@ package main
 import (
 	"io"
 	"net"
+	
 	"os"
 	"path/filepath"
+	"fmt"
 )
 
 func sendFile(filePath string, conn net.Conn) error {
@@ -96,47 +98,40 @@ func receiveFile(filePath string) error {
 }
 
 // Main.go
-package main
-
-import (
-	"flag"
-	"fmt"
-	"os"
-	"runtime"
-)
+//package main
 
 var version = "0.3.2"
 
-func main() {
-	flag.Usage = func() {
-		fmt.Printf("Usage of %s:\n", os.Args[0])
-		fmt.Printf("  -connect <host>:<port>\n")
-		fmt.Printf("  -port <port>\n")
-		fmt.Printf("  -file <path>\n")
-		fmt.Printf("  -v\n")
-		fmt.Printf("  -version\n")
-		flag.PrintDefaults()
-	}
-	var (
-		hostToConnectTo = flag.String("connect", "", "Connect to a clipboard at this address")
-		portToConnectTo = flag.String("port", "", "Port to connect to or host the clipboard")
-		fileToTransfer  = flag.String("file", "", "Path to the file to transfer")
-		verbose         = flag.Bool("v", false, "Print verbose (debug) information")
-		printVersion    = flag.Bool("version", false, "Print the version and exit")
-	)
-	flag.Parse()
+// func main() {
+// 	flag.Usage = func() {
+// 		fmt.Printf("Usage of %s:\n", os.Args[0])
+// 		fmt.Printf("  -connect <host>:<port>\n")
+// 		fmt.Printf("  -port <port>\n")
+// 		fmt.Printf("  -file <path>\n")
+// 		fmt.Printf("  -v\n")
+// 		fmt.Printf("  -version\n")
+// 		flag.PrintDefaults()
+// 	}
+// 	var (
+// 		hostToConnectTo = flag.String("connect", "", "Connect to a clipboard at this address")
+// 		portToConnectTo = flag.String("port", "", "Port to connect to or host the clipboard")
+// 		fileToTransfer  = flag.String("file", "", "Path to the file to transfer")
+// 		verbose         = flag.Bool("v", false, "Print verbose (debug) information")
+// 		printVersion    = flag.Bool("version", false, "Print the version and exit")
+// 	)
+// 	flag.Parse()
 
-	printDebugInfo = *verbose
-	if *printVersion {
-		fmt.Println("UniClip version", version)
-		os.Exit(0)
-	}
+// 	printDebugInfo = *verbose
+// 	if *printVersion {
+// 		fmt.Println("UniClip version", version)
+// 		os.Exit(0)
+// 	}
 
-	if *hostToConnectTo != "" && *portToConnectTo != "" {
-		connectToServer(*hostToConnectTo, *portToConnectTo)
-	} else if *fileToTransfer != "" {
-		transferFile(*fileToTransfer)
-	} else {
-		makeServer()
-	}
-}
+// 	if *hostToConnectTo != "" && *portToConnectTo != "" {
+// 		connectToServer(*hostToConnectTo, *portToConnectTo)
+// 	} else if *fileToTransfer != "" {
+// 		transferFile(*fileToTransfer)
+// 	} else {
+// 		makeServer()
+// 	}
+// }
