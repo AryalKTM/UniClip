@@ -11,17 +11,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/atotto/clipboard"
 )
 
 const (
-	uploadDir                         = "./Download"
+	uploadDir                     = "./Download"
 	secondsBetweenChecksForClipChange = 1
-	serverPort                        = ":8080"
-	tcpPort                           = ":8081"
+	serverPort                    = ":8080"
+	tcpPort                       = ":8081"
 )
+
+var clipboardMutex sync.Mutex
 
 // Function to handle file downloads
 func downloadFile(w http.ResponseWriter, r *http.Request) {
@@ -131,11 +134,15 @@ func sendClipboard(conn net.Conn, text string) error {
 func MonitorLocalClip(conn net.Conn, serverURL string) {
 	var localClipboard string
 	for {
+		clipboardMutex.Lock()
 		newClipboard, err := clipboard.ReadAll()
+		clipboardMutex.Unlock()
+
 		if err != nil {
 			handleError(err)
 			continue
 		}
+
 		if newClipboard != localClipboard {
 			localClipboard = newClipboard
 			isFilePath := strings.HasPrefix(localClipboard, `"`) && strings.HasSuffix(localClipboard, `"`)
@@ -179,7 +186,10 @@ func handleReceivedClipboard(conn net.Conn) {
 			fmt.Println("Received file path:", trimmedPath)
 			// Handle file transfer here
 		} else {
+			clipboardMutex.Lock()
 			err := clipboard.WriteAll(receivedClipboard)
+			clipboardMutex.Unlock()
+
 			if err != nil {
 				handleError(err)
 				continue
@@ -207,7 +217,7 @@ func main() {
 
 	listener, err := net.Listen("tcp", tcpPort)
 	if err != nil {
-		handleError(fmt.Errorf("error starting TCP server: %w", err))
+		handleError(fmt.Errorf("Error starting TCP server: %w", err))
 		return
 	}
 	defer listener.Close()
@@ -219,7 +229,7 @@ func main() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				handleError(fmt.Errorf("error accepting connection: %w", err))
+				handleError(fmt.Errorf("Error accepting connection: %w", err))
 				continue
 			}
 			connections = append(connections, conn)
@@ -234,7 +244,7 @@ func main() {
 	if serverIP != "" {
 		conn, err := net.Dial("tcp", serverIP+tcpPort)
 		if err != nil {
-			handleError(fmt.Errorf("error connecting to server: %w", err))
+			handleError(fmt.Errorf("Error connecting to server: %w", err))
 			return
 		}
 		connections = append(connections, conn)
