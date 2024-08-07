@@ -17,10 +17,10 @@ import (
 )
 
 const (
-	uploadDir                     = "./Download"
+	uploadDir                         = "./Download"
 	secondsBetweenChecksForClipChange = 1
-	serverPort                    = ":8080"
-	tcpPort                       = ":8081"
+	serverPort                        = ":8080"
+	tcpPort                           = ":8081"
 )
 
 // Function to handle file downloads
@@ -128,7 +128,7 @@ func sendClipboard(conn net.Conn, text string) error {
 }
 
 // Function to monitor local clipboard and send changes
-func MonitorLocalClip(connections []net.Conn, serverURL string) {
+func MonitorLocalClip(conn net.Conn, serverURL string) {
 	var localClipboard string
 	for {
 		newClipboard, err := clipboard.ReadAll()
@@ -141,25 +141,21 @@ func MonitorLocalClip(connections []net.Conn, serverURL string) {
 			isFilePath := strings.HasPrefix(localClipboard, `"`) && strings.HasSuffix(localClipboard, `"`)
 			if isFilePath {
 				trimmedPath := strings.Trim(localClipboard, `"`)
-				for _, conn := range connections {
-					err := sendClipboard(conn, localClipboard)
-					if err != nil {
-						handleError(err)
-						continue
-					}
-					err = uploadToServer(serverURL, trimmedPath)
-					if err != nil {
-						handleError(err)
-						continue
-					}
+				err := sendClipboard(conn, localClipboard)
+				if err != nil {
+					handleError(err)
+					continue
+				}
+				err = uploadToServer(serverURL, trimmedPath)
+				if err != nil {
+					handleError(err)
+					continue
 				}
 			} else {
-				for _, conn := range connections {
-					err := sendClipboard(conn, localClipboard)
-					if err != nil {
-						handleError(err)
-						continue
-					}
+				err := sendClipboard(conn, localClipboard)
+				if err != nil {
+					handleError(err)
+					continue
 				}
 			}
 		}
@@ -244,9 +240,12 @@ func main() {
 		connections = append(connections, conn)
 		go handleReceivedClipboard(conn)
 		serverURL := fmt.Sprintf("http://%s%s", serverIP, serverPort)
-		go MonitorLocalClip(connections, serverURL)
-	} else {
-		go MonitorLocalClip(connections, "http://localhost"+serverPort)
+		go MonitorLocalClip(conn, serverURL)
+	}
+
+	// Monitor local clipboard changes and send them to all connected devices
+	for _, conn := range connections {
+		go MonitorLocalClip(conn, "http://localhost"+serverPort)
 	}
 
 	select {} // Keep the main function running
