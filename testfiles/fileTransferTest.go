@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -18,13 +19,17 @@ import (
 )
 
 const (
-	uploadDir                     = "./Download"
+	uploadDir                         = "./Download"
 	secondsBetweenChecksForClipChange = 1
-	serverPort                    = ":8080"
-	tcpPort                       = ":8081"
+	serverPort                        = ":8080"
+	tcpPort                           = ":8081"
 )
 
-var clipboardMutex sync.Mutex
+var (
+	clipboardMutex sync.Mutex
+	connections    = make(map[net.Conn]struct{})
+	connectionsMu  sync.Mutex
+)
 
 // Function to handle file downloads
 func downloadFile(w http.ResponseWriter, r *http.Request) {
@@ -176,6 +181,14 @@ func handleReceivedClipboard(conn net.Conn) {
 	for {
 		receivedClipboard, err := reader.ReadString('\n')
 		if err != nil {
+			if err == io.EOF {
+				fmt.Println("Connection closed by peer")
+				connectionsMu.Lock()
+				delete(connections, conn)
+				connectionsMu.Unlock()
+				conn.Close()
+				return
+			}
 			handleError(err)
 			continue
 		}
@@ -199,8 +212,17 @@ func handleReceivedClipboard(conn net.Conn) {
 	}
 }
 
+// Function to handle new connections
+func handleNewConnection(conn net.Conn) {
+	connectionsMu.Lock()
+	connections[conn] = struct{}{}
+	connectionsMu.Unlock()
+
+	handleReceivedClipboard(conn)
+}
+
 func handleError(err error) {
-	fmt.Println("Error:", err)
+	log.Println("Error:", err)
 }
 
 func main() {
@@ -223,8 +245,6 @@ func main() {
 	defer listener.Close()
 	fmt.Println("TCP server started on port 8081")
 
-	connections := make([]net.Conn, 0)
-
 	go func() {
 		for {
 			conn, err := listener.Accept()
@@ -232,8 +252,7 @@ func main() {
 				handleError(fmt.Errorf("Error accepting connection: %w", err))
 				continue
 			}
-			connections = append(connections, conn)
-			go handleReceivedClipboard(conn)
+			go handleNewConnection(conn)
 		}
 	}()
 
@@ -247,15 +266,10 @@ func main() {
 			handleError(fmt.Errorf("Error connecting to server: %w", err))
 			return
 		}
-		connections = append(connections, conn)
-		go handleReceivedClipboard(conn)
+		defer conn.Close()
+		go handleNewConnection(conn)
 		serverURL := fmt.Sprintf("http://%s%s", serverIP, serverPort)
 		go MonitorLocalClip(conn, serverURL)
-	}
-
-	// Monitor local clipboard changes and send them to all connected devices
-	for _, conn := range connections {
-		go MonitorLocalClip(conn, "http://localhost"+serverPort)
 	}
 
 	select {} // Keep the main function running
