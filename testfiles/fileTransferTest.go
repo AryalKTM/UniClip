@@ -134,7 +134,7 @@ func MonitorLocalClip(connections []net.Conn, serverURL string) {
 		newClipboard, err := clipboard.ReadAll()
 		if err != nil {
 			handleError(err)
-			return
+			continue
 		}
 		if newClipboard != localClipboard {
 			localClipboard = newClipboard
@@ -145,12 +145,12 @@ func MonitorLocalClip(connections []net.Conn, serverURL string) {
 					err := sendClipboard(conn, localClipboard)
 					if err != nil {
 						handleError(err)
-						return
+						continue
 					}
 					err = uploadToServer(serverURL, trimmedPath)
 					if err != nil {
 						handleError(err)
-						return
+						continue
 					}
 				}
 			} else {
@@ -158,7 +158,7 @@ func MonitorLocalClip(connections []net.Conn, serverURL string) {
 					err := sendClipboard(conn, localClipboard)
 					if err != nil {
 						handleError(err)
-						return
+						continue
 					}
 				}
 			}
@@ -174,7 +174,7 @@ func handleReceivedClipboard(conn net.Conn) {
 		receivedClipboard, err := reader.ReadString('\n')
 		if err != nil {
 			handleError(err)
-			return
+			continue
 		}
 		receivedClipboard = strings.TrimSpace(receivedClipboard)
 		isFilePath := strings.HasPrefix(receivedClipboard, `"`) && strings.HasSuffix(receivedClipboard, `"`)
@@ -186,7 +186,7 @@ func handleReceivedClipboard(conn net.Conn) {
 			err := clipboard.WriteAll(receivedClipboard)
 			if err != nil {
 				handleError(err)
-				return
+				continue
 			}
 			fmt.Println("Received clipboard text:", receivedClipboard)
 		}
@@ -203,12 +203,15 @@ func main() {
 
 	go func() {
 		fmt.Println("Server started at http://localhost:8080")
-		http.ListenAndServe(serverPort, nil)
+		err := http.ListenAndServe(serverPort, nil)
+		if err != nil {
+			handleError(err)
+		}
 	}()
 
 	listener, err := net.Listen("tcp", tcpPort)
 	if err != nil {
-		fmt.Println("Error starting TCP server:", err)
+		handleError(fmt.Errorf("error starting TCP server: %w", err))
 		return
 	}
 	defer listener.Close()
@@ -220,7 +223,7 @@ func main() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				fmt.Println("Error accepting connection:", err)
+				handleError(fmt.Errorf("error accepting connection: %w", err))
 				continue
 			}
 			connections = append(connections, conn)
@@ -235,13 +238,15 @@ func main() {
 	if serverIP != "" {
 		conn, err := net.Dial("tcp", serverIP+tcpPort)
 		if err != nil {
-			fmt.Println("Error connecting to server:", err)
+			handleError(fmt.Errorf("error connecting to server: %w", err))
 			return
 		}
 		connections = append(connections, conn)
 		go handleReceivedClipboard(conn)
 		serverURL := fmt.Sprintf("http://%s%s", serverIP, serverPort)
 		go MonitorLocalClip(connections, serverURL)
+	} else {
+		go MonitorLocalClip(connections, "http://localhost"+serverPort)
 	}
 
 	select {} // Keep the main function running
