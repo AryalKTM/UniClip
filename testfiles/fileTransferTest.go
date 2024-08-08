@@ -239,7 +239,7 @@ func main() {
 
 	listener, err := net.Listen("tcp", tcpPort)
 	if err != nil {
-		handleError(fmt.Errorf("Error starting TCP server: %w", err))
+		handleError(fmt.Errorf("error starting TCP server: %w", err))
 		return
 	}
 	defer listener.Close()
@@ -249,7 +249,7 @@ func main() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				handleError(fmt.Errorf("Error accepting connection: %w", err))
+				handleError(fmt.Errorf("error accepting connection: %w", err))
 				continue
 			}
 			go handleNewConnection(conn)
@@ -263,7 +263,7 @@ func main() {
 	if serverIP != "" {
 		conn, err := net.Dial("tcp", serverIP+tcpPort)
 		if err != nil {
-			handleError(fmt.Errorf("Error connecting to server: %w", err))
+			handleError(fmt.Errorf("error connecting to server: %w", err))
 			return
 		}
 		defer conn.Close()
