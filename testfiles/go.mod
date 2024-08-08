@@ -2,7 +2,9 @@ module test
 
 go 1.22.5
 
+require golang.org/x/crypto v0.26.0
+
 require (
-	github.com/atotto/clipboard v0.1.4
-	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
+	golang.org/x/sys v0.23.0 // indirect
+	golang.org/x/term v0.23.0 // indirect
 )
