@@ -48,7 +48,7 @@ Refer to https://github.com/quackduck/uniclip for more information`
 	cryptoStrength = 16384
 	secure         = false
 	password       []byte
-	port           = 0
+	port           = 8059
 )
 
 // TODO: Add a way to reconnect (if computer goes to sleep)
@@ -182,6 +182,7 @@ func MonitorLocalClip(w *bufio.Writer) {
 func MonitorSentClips(r *bufio.Reader) {
 	var foreignClipboard string
 	var foreignClipboardBytes []byte
+	var downloadPath string
 	for {
 		streamType, err := r.ReadByte()
 		if err != nil {
@@ -258,7 +259,12 @@ func MonitorSentClips(r *bufio.Reader) {
 					continue
 				}
 			}
-			downloadPath := filepath.Join("/Users/aryal/Downloads", fileName)
+
+			if runtime.GOOS == "windows" {
+				downloadPath = filepath.Join(`C:\\Users\aryal\Downloads`, fileName)
+			} else if runtime.GOOS == "darwin" {
+				downloadPath = filepath.Join("/Users/aryal/Downloads", fileName)
+			}
 
 			err = os.WriteFile(downloadPath, fileContent, 0644)
 			if err != nil {
