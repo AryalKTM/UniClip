@@ -230,8 +230,8 @@ func MonitorSentClips(r *bufio.Reader) {
 				}
 			}
 		case 0x01:
-			var fileName string
-			err := gob.NewDecoder(r).Decode(&fileName)
+			var fileNameBytes []byte
+			err := gob.NewDecoder(r).Decode(&fileNameBytes)
 			if err != nil {
 				if err == io.EOF {
 					return
@@ -239,6 +239,7 @@ func MonitorSentClips(r *bufio.Reader) {
 				handleError(err)
 				continue
 			}
+			fileName := filepath.Base(string(fileNameBytes))
 
 			var fileContent []byte
 			err = gob.NewDecoder(r).Decode(&fileContent)
@@ -257,7 +258,7 @@ func MonitorSentClips(r *bufio.Reader) {
 					continue
 				}
 			}
-			downloadPath := "/Users/aryal/Downloads/" + fileName
+			downloadPath := filepath.Join("/Users/aryal/Downloads", fileName)
 
 			err = os.WriteFile(downloadPath, fileContent, 0644)
 			if err != nil {
