@@ -2,8 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"compress/flate"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
