@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -212,7 +213,7 @@ func MonitorSentClips(r *bufio.Reader) {
 			}
 
 			foreignClipboard = string(foreignClipboardBytes)
-			// hacky way to prevent empty clipboard TODO: find out why empty cb happens
+			//TO Prevent Empty Clipboard, Don't know why that happens.
 			if foreignClipboard == "" {
 				continue
 			}
@@ -256,7 +257,7 @@ func MonitorSentClips(r *bufio.Reader) {
 					continue
 				}
 			}
-			downloadPath := "/Users/aryal/Download/" + fileName
+			downloadPath := "/Users/aryal/Downloads/" + fileName
 
 			err = os.WriteFile(downloadPath, fileContent, 0644)
 			if err != nil {
@@ -278,9 +279,9 @@ func sendClipboard(w *bufio.Writer, clipboard string) error {
 	var clipboardBytes []byte
 	var err error
 	var streamType byte
-
-	if strings.Contains(clipboard, `"`) && strings.Contains(clipboard, `\`) && strings.Contains(clipboard, ":") {
-		trimmedPath := strings.Trim(clipboard, `"`)
+	trimmedPath := strings.Trim(clipboard, `"`)
+	
+	if isValidFilePath(trimmedPath) {
 		file, err := os.OpenFile(trimmedPath, os.O_RDONLY, 0755)
 		if err != nil {
 			return err
@@ -534,4 +535,21 @@ func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
 // keep order
 func removeElemFromSlice(slice []string, i int) []string {
 	return append(slice[:i], slice[i+1:]...)
+}
+
+func isValidFilePath(path string) bool {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+
+	info, err := os.Stat(absPath)
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	if info.IsDir() {
+		return false
+	}
+	return true
 }
