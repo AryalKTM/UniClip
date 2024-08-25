@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -13,12 +14,12 @@ import (
 func startWindowsSystemTray() {
 	onReady := func() {
 		systray.SetIcon(getIcon("icon.png"))
-		systray.SetTitle("ClipSync")
 		systray.SetTooltip("ClipSync - Universal Clipboard")
 
 		mStart := systray.AddMenuItem("Start Server", "Start the Clipboard Server")
-		systray.AddSeparator()
 		mConnect := systray.AddMenuItem("Connect to Server", "Connect to Existing Server")
+		systray.AddSeparator()
+		mEncrypt := systray.AddMenuItemCheckbox((fmt.Sprintf("Secure Connection: %v", secure)), "Enable End-to-End Encryption", false)
 		// mStartonLogin := systray.AddMenuItemCheckbox("Start on Login", "Start ClipSync on Login", false)
 		mQuit := systray.AddMenuItem("Quit", "Quit ClipSync")
 
@@ -28,9 +29,12 @@ func startWindowsSystemTray() {
 				case <-mStart.ClickedCh:
 					go makeServer()
 				case <-mConnect.ClickedCh:
-					go ConnectToServer("localhost:8091")
+					go showConnectDialog()
 				// case <- mStartonLogin.ClickedCh:
 				// 	mStartonLogin.Check()
+				case <- mEncrypt.ClickedCh:
+					secure = !secure
+					fmt.Println(secure)
 				case <-mQuit.ClickedCh:
 					systray.Quit()
 				}
@@ -57,17 +61,17 @@ func showConnectDialog() {
 	window := app.NewWindow("Connect to Server")
 
 	ipEntry := widget.NewEntry()
-	ipEntry.setPlaceHolder("192.168.1.1:8080")
+	ipEntry.SetPlaceHolder("192.168.1.1:8080")
 
 	content := container.NewVBox(
 		widget.NewLabel("Connect"),
 		ipEntry,
 		widget.NewButton("Connect", func() {
 			go ConnectToServer(ipEntry.Text)
-			window.close()
+			window.Close()
 			app.Quit()
 		}),
 	)
-	window.setContent(content)
+	window.SetContent(content)
 	window.ShowAndRun()
 }

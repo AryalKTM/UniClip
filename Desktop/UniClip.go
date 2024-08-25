@@ -11,7 +11,6 @@ var (
 	listOfClients  = make([]*bufio.Writer, 0)
 	localClipboard string
 	printDebugInfo = false
-
 	cryptoStrength = 16384
 	secure         = false
 	password       []byte
@@ -22,6 +21,8 @@ var (
 func main() {
 	switch runtime.GOOS {
 	case "windows":
+		startWindowsSystemTray()
+	case "darwin":
 		startWindowsSystemTray()
 	default:
 		runTerminalApp()
