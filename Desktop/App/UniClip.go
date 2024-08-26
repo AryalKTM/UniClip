@@ -23,8 +23,8 @@ func main() {
 	case "windows":
 		startWindowsSystemTray()
 	case "darwin":
-		startWindowsSystemTray()
+		go startWindowsSystemTray()
 	default:
-		runTerminalApp()
+		go runTerminalApp()
 	}
 }

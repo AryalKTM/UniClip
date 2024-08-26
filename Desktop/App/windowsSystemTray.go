@@ -19,12 +19,14 @@ func startWindowsSystemTray() {
 	}
 
 	onReady := func() {
-		systray.SetIcon(getIcon("icon.png"))
+		systray.SetIcon(getIcon("../icon.png"))
 		systray.SetTooltip("ClipSync - Universal Clipboard")
 
 		mStart := systray.AddMenuItem("Start Server", "Start the Clipboard Server")
 
 		mConnect := systray.AddMenuItem("Connect to Server", "Connect to Saved Server")
+
+		mSettings := systray.AddMenuItem("Settings", "ClipSync Settings")
 
 		systray.AddSeparator()
 
@@ -37,6 +39,8 @@ func startWindowsSystemTray() {
 					go makeServer()
 				case <-mConnect.ClickedCh:
 					go ConnectToServer(ipAddress)
+				case <-mSettings.ClickedCh:
+					go renderSettingsMenu()
 				case <-mQuit.ClickedCh:
 					systray.Quit()
 				}
