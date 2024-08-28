@@ -19,7 +19,6 @@ class ServerConnectionManager {
   Future<void> connectToServer() async {
     final ip = ipController.text;
     final port = portController.text;
-
     String address = '$ip:$port';
 
     try {
@@ -36,21 +35,31 @@ class ServerConnectionManager {
           gravity: ToastGravity.CENTER);
 
       _socket!.listen(
-            (data) {
-          final receivedData = String.fromCharCodes(data);
-          Clipboard.setData(ClipboardData(text: receivedData));
-          Fluttertoast.showToast(msg: "Data copied to clipboard");
-        },
-        onError: (error) {
-          Fluttertoast.showToast(msg: "Error: $error");
-        },
-        onDone: () {
-          _isConnected = false;
-          Fluttertoast.showToast(msg: "Disconnected from server");
-        },
+        (data) => _handleReceivedData(data),
+        onError: (error) => _handleError(error),
+        onDone: _handleDone,
       );
     } catch (e) {
       Fluttertoast.showToast(msg: "Failed to connect: $e");
     }
+  }
+
+  void _handleReceivedData(List<int> data) {
+    final receivedData = String.fromCharCodes(data);
+    _copyDataToClipboard(receivedData);
+    Fluttertoast.showToast(msg: "Data copied to clipboard");
+  }
+
+  void _handleError(Object error) {
+    Fluttertoast.showToast(msg: "Error: $error");
+  }
+
+  void _handleDone() {
+    _isConnected = false;
+    Fluttertoast.showToast(msg: "Disconnected from server");
+  }
+
+  void _copyDataToClipboard(String data) {
+    Clipboard.setData(ClipboardData(text: data));
   }
 }

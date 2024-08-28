@@ -11,13 +11,13 @@ void main() async {
       channelId: 'clip_sync_channel',
       channelName: 'ClipSync Background Service',
       channelDescription:
-      'This notification keeps the ClipSync service running in the background.',
+          'This notification keeps the ClipSync service running in the background.',
       channelImportance: NotificationChannelImportance.LOW,
       priority: NotificationPriority.LOW,
       showBadge: true,
     ),
     iosNotificationOptions:
-    const IOSNotificationOptions(showNotification: true, playSound: false),
+        const IOSNotificationOptions(showNotification: true, playSound: false),
     foregroundTaskOptions: const ForegroundTaskOptions(
       autoRunOnBoot: true,
     ),
@@ -51,8 +51,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFFefb32e)
-        ),
+            backgroundColor: Color(0xFFefb32e)),
         textTheme: const TextTheme(
           bodyLarge: TextStyle(color: Colors.white),
           bodyMedium: TextStyle(color: Colors.white70),

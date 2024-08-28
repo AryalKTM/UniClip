@@ -123,7 +123,8 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(isEdit ? 'Edit Address' : 'Add Address', textAlign: TextAlign.center),
+          title: Text(isEdit ? 'Edit Address' : 'Add Address',
+              textAlign: TextAlign.center),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -176,7 +177,9 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             Text(
               _isConnected ? "Connected" : "Not Connected",
-              style: const TextStyle(fontSize: 20, color: Colors.red),
+              style: TextStyle(
+                  fontSize: 20,
+                  color: _isConnected ? Colors.greenAccent : Colors.redAccent),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -218,13 +221,22 @@ class _MyHomePageState extends State<MyHomePage> {
                       _onDeleteAddress(address);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('${address.name} deleted'),
+                          content: Text(
+                            '${address.name} deleted',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          backgroundColor: Colors.black,
                         ),
                       );
                     },
                     background: Container(color: Colors.red),
                     child: ListTile(
+                      leading: const Icon(Icons.computer_rounded),
+                      iconColor: const Color(0xFFefb32e),
                       title: Text(address.name),
+                      titleTextStyle: const TextStyle(
+                        color: Color(0xFFefb32e),
+                      ),
                       subtitle: Text('${address.ip}:${address.port}'),
                       onTap: () => _onAddressPressed(address),
                       onLongPress: () => _onEditAddress(address),
