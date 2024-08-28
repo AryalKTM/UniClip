@@ -20,7 +20,7 @@ func makeServer() {
 	}
 	defer l.Close()
 	port := strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
-	fmt.Println("Run", "`clipsync", getOutboundIP().String()+":"+port+"`", "to join this clipboard")
+	fmt.Println("Server Started at:", getOutboundIP().String()+":"+port)
 	fmt.Println()
 	for {
 		c, err := l.Accept()

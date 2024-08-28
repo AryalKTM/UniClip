@@ -2,22 +2,22 @@ package main
 
 import (
 	"bufio"
-	"time"
-	"io"
 	"encoding/gob"
-	"path/filepath"
-	"fmt"
-	"runtime"
-	"os"
 	"errors"
-	"strings"
+	"fmt"
+	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
 )
 
+// MonitorLocalClip monitors the local clipboard for changes
 func MonitorLocalClip(w *bufio.Writer) {
 	for {
 		localClipboard = getLocalClip()
-		//debug("clipboard changed so sending it. localClipboard =", localClipboard)
 		err := sendClipboard(w, localClipboard)
 		if err != nil {
 			handleError(err)
@@ -29,11 +29,12 @@ func MonitorLocalClip(w *bufio.Writer) {
 	}
 }
 
-// monitors for clipboards sent through r
+// MonitorSentClips monitors the received clips or files from the server
 func MonitorSentClips(r *bufio.Reader) {
 	var foreignClipboard string
 	var foreignClipboardBytes []byte
 	var downloadPath string = ""
+
 	for {
 		streamType, err := r.ReadByte()
 		if err != nil {
@@ -46,16 +47,17 @@ func MonitorSentClips(r *bufio.Reader) {
 
 		switch streamType {
 		case 0x00:
+			// Clipboard text received
 			err := gob.NewDecoder(r).Decode(&foreignClipboardBytes)
 			if err != nil {
 				if err == io.EOF {
-					return // no need to monitor: disconnected
+					return
 				}
 				handleError(err)
-				continue // continue getting next message
+				continue
 			}
 
-			// decrypt if needed
+			// Decrypt if needed
 			if secure {
 				foreignClipboardBytes, err = decrypt(password, foreignClipboardBytes)
 				if err != nil {
@@ -65,23 +67,24 @@ func MonitorSentClips(r *bufio.Reader) {
 			}
 
 			foreignClipboard = string(foreignClipboardBytes)
-			//TO Prevent Empty Clipboard, Don't know why that happens.
 			if foreignClipboard == "" {
 				continue
 			}
 			setLocalClip(foreignClipboard)
 			localClipboard = foreignClipboard
-			debug("rcvd:", foreignClipboard)
+			debug("Received:", foreignClipboard)
 			for i := range listOfClients {
 				if listOfClients[i] != nil {
 					err = sendClipboard(listOfClients[i], foreignClipboard)
 					if err != nil {
 						listOfClients[i] = nil
-						fmt.Println("Error when trying to send the clipboard to a device. Will not contact that device again.")
+						fmt.Println("Error sending clipboard to a device. Will not contact that device again.")
 					}
 				}
 			}
+
 		case 0x01:
+			// File received
 			var fileNameBytes []byte
 			err := gob.NewDecoder(r).Decode(&fileNameBytes)
 			if err != nil {
@@ -111,68 +114,75 @@ func MonitorSentClips(r *bufio.Reader) {
 				}
 			}
 
-			if runtime.GOOS == "windows" {
-				downloadPath = filepath.Join(`C:\\Users\aryal\Downloads\`, fileName)
-				fmt.Println("File Created at:" + downloadPath)
-			} else if runtime.GOOS == "darwin" {
-				downloadPath = filepath.Join("/Users/aryal/Downloads", fileName)
+			// Determine the download path based on the OS
+			switch runtime.GOOS {
+			case "windows":
+				downloadPath = filepath.Join(os.Getenv("USERPROFILE"), "Downloads", fileName)
+			case "darwin":
+				downloadPath = filepath.Join(os.Getenv("HOME"), "Downloads", fileName)
+			default:
+				downloadPath = filepath.Join(os.Getenv("HOME"), "Downloads", fileName)
 			}
 
 			err = os.WriteFile(downloadPath, fileContent, 0644)
 			if err != nil {
-				fmt.Println("Error while Writing File")
+				fmt.Println("Error writing file")
 				handleError(err)
 				continue
 			}
-			fmt.Print("File Created Successfully\n", fileName)
+			fmt.Printf("File created successfully: %s\n", downloadPath)
+
 		default:
 			handleError(errors.New("unknown stream type"))
 			continue
 		}
-
-		//foreignClipboard = decompress(foreignClipboardBytes)
 	}
 }
 
-// sendClipboard compresses and then if secure is enabled, encrypts data
+// sendClipboard compresses, encrypts, and sends clipboard or file content
 func sendClipboard(w *bufio.Writer, clipboard string) error {
 	var clipboardBytes []byte
 	var err error
 	var streamType byte
+
 	trimmedPath := strings.Trim(clipboard, `"`)
-	fmt.Println("Received:" + clipboard)
 	if isValidFilePath(trimmedPath) {
-		file, err := os.OpenFile(trimmedPath, os.O_RDONLY, 0755)
+		// Send file
+		file, err := os.Open(trimmedPath)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
+
 		fileData, err := io.ReadAll(file)
 		if err != nil {
 			return err
 		}
+
 		streamType = 0x01
 		err = w.WriteByte(streamType)
 		if err != nil {
 			return err
 		}
 
-		fileName := []byte(trimmedPath)
-		err = gob.NewEncoder(w).Encode(fileName)
+		fileName := filepath.Base(trimmedPath)
+		err = gob.NewEncoder(w).Encode([]byte(fileName))
 		if err != nil {
 			return err
 		}
+
 		clipboardBytes = fileData
 	} else {
+		// Send clipboard text
 		streamType = 0x00
 		err = w.WriteByte(streamType)
 		if err != nil {
 			return err
 		}
+
 		clipboardBytes = []byte(clipboard)
 	}
-	//clipboardBytes = compress(clipboard)
-	//fmt.Printf("cmpr: %x\ndcmp: %x\nstr: %s\n\ncmpr better by %d\n", clipboardBytes, []byte(clipboard), clipboard, len(clipboardBytes)-len(clipboard))
+
 	if secure {
 		clipboardBytes, err = encrypt(password, clipboardBytes)
 		if err != nil {
@@ -184,21 +194,15 @@ func sendClipboard(w *bufio.Writer, clipboard string) error {
 	if err != nil {
 		return err
 	}
-	debug("sent:", clipboard)
-	//if secure {
-	//	debug("--secure is enabled, so actually sent as:", hex.EncodeToString(clipboardBytes))
-	//}
 	return w.Flush()
 }
 
+// getLocalClip gets the current content of the local clipboard
 func getLocalClip() string {
-	str := runGetClipCommand()
-	//for ; str == ""; str = runGetClipCommand() { // wait until it's not empty
-	//	time.Sleep(time.Millisecond * 100)
-	//}
-	return str
+	return runGetClipCommand()
 }
 
+// setLocalClip sets the clipboard content to the provided string
 func setLocalClip(s string) {
 	var copyCmd *exec.Cmd
 	switch runtime.GOOS {
@@ -207,72 +211,89 @@ func setLocalClip(s string) {
 	case "windows":
 		copyCmd = exec.Command("clip")
 	default:
-		if _, err := exec.LookPath("xclip"); err == nil {
-			copyCmd = exec.Command("xclip", "-in", "-selection", "clipboard")
-		} else if _, err = exec.LookPath("xsel"); err == nil {
-			copyCmd = exec.Command("xsel", "--input", "--clipboard")
-		} else if _, err = exec.LookPath("wl-copy"); err == nil {
-			copyCmd = exec.Command("wl-copy")
-		} else if _, err = exec.LookPath("termux-clipboard-set"); err == nil {
-			copyCmd = exec.Command("termux-clipboard-set")
-		} else {
-			handleError(errors.New("sorry, ClipSync won't work if you don't have xsel, xclip, wayland or Termux:API installed"))
+		copyCmd = getLinuxCopyCmd()
+		if copyCmd == nil {
+			handleError(errors.New("unable to find suitable clipboard command"))
 			os.Exit(2)
 		}
 	}
+
 	in, err := copyCmd.StdinPipe()
 	if err != nil {
 		handleError(err)
 		return
 	}
-	if err = copyCmd.Start(); err != nil {
+	defer in.Close()
+
+	if err := copyCmd.Start(); err != nil {
 		handleError(err)
 		return
 	}
-	if _, err = in.Write([]byte(s)); err != nil {
+
+	if _, err := in.Write([]byte(s)); err != nil {
 		handleError(err)
 		return
 	}
-	if err = in.Close(); err != nil {
-		handleError(err)
-		return
-	}
-	if err = copyCmd.Wait(); err != nil {
+
+	if err := copyCmd.Wait(); err != nil {
 		handleError(err)
 		return
 	}
 }
 
+// getLinuxCopyCmd returns the appropriate command to set the clipboard in Linux
+func getLinuxCopyCmd() *exec.Cmd {
+	if _, err := exec.LookPath("xclip"); err == nil {
+		return exec.Command("xclip", "-in", "-selection", "clipboard")
+	} else if _, err := exec.LookPath("xsel"); err == nil {
+		return exec.Command("xsel", "--input", "--clipboard")
+	} else if _, err := exec.LookPath("wl-copy"); err == nil {
+		return exec.Command("wl-copy")
+	} else if _, err := exec.LookPath("termux-clipboard-set"); err == nil {
+		return exec.Command("termux-clipboard-set")
+	}
+	return nil
+}
+
+// runGetClipCommand runs the command to get the current clipboard content
 func runGetClipCommand() string {
-	var out []byte
-	var err error
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
 	case "darwin":
 		cmd = exec.Command("pbpaste")
-	case "windows": //nolint // complains about literal string "windows" being used multiple times
+	case "windows":
 		cmd = exec.Command("powershell.exe", "-command", "Get-Clipboard")
 	default:
-		if _, err = exec.LookPath("xclip"); err == nil {
-			cmd = exec.Command("xclip", "-out", "-selection", "clipboard")
-		} else if _, err = exec.LookPath("xsel"); err == nil {
-			cmd = exec.Command("xsel", "--output", "--clipboard")
-		} else if _, err = exec.LookPath("wl-paste"); err == nil {
-			cmd = exec.Command("wl-paste", "--no-newline")
-		} else if _, err = exec.LookPath("termux-clipboard-get"); err == nil {
-			cmd = exec.Command("termux-clipboard-get")
-		} else {
-			handleError(errors.New("sorry, ClipSync won't work if you don't have xsel, xclip, wayland or Termux installed"))
+		cmd = getLinuxPasteCmd()
+		if cmd == nil {
+			handleError(errors.New("unable to find suitable clipboard command"))
 			os.Exit(2)
 		}
 	}
-	if out, err = cmd.Output(); err != nil {
+
+	out, err := cmd.Output()
+	if err != nil {
 		handleError(err)
-		return "An error occurred wile getting the local clipboard"
+		return "Error getting local clipboard"
 	}
+
 	if runtime.GOOS == "windows" {
-		return strings.TrimSuffix(string(out), "\r\n") // powershell's get-clipboard adds a windows newline to the end for some reason
+		return strings.TrimSuffix(string(out), "\r\n")
 	}
 	return string(out)
+}
+
+// getLinuxPasteCmd returns the appropriate command to get the clipboard content in Linux
+func getLinuxPasteCmd() *exec.Cmd {
+	if _, err := exec.LookPath("xclip"); err == nil {
+		return exec.Command("xclip", "-out", "-selection", "clipboard")
+	} else if _, err := exec.LookPath("xsel"); err == nil {
+		return exec.Command("xsel", "--output", "--clipboard")
+	} else if _, err := exec.LookPath("wl-paste"); err == nil {
+		return exec.Command("wl-paste", "--no-newline")
+	} else if _, err := exec.LookPath("termux-clipboard-get"); err == nil {
+		return exec.Command("termux-clipboard-get")
+	}
+	return nil
 }

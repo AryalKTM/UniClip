@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"runtime"
 )
 
@@ -19,6 +20,7 @@ var (
 
 // TODO: Add a way to reconnect (if computer goes to sleep)
 func main() {
+	fmt.Println("*****Welcome to ClipSync*****")
 	switch runtime.GOOS {
 	case "windows":
 		startWindowsSystemTray()

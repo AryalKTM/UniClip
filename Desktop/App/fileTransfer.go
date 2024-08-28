@@ -6,22 +6,23 @@ import (
 )
 
 func isValidFilePath(path string) bool {
+	if path == "" {
+		return false
+	}
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return false
 	}
 
-	if path == "" {
-		return false
-	}
-
 	info, err := os.Stat(absPath)
-	if os.IsNotExist(err) {
+	if err != nil {
 		return false
 	}
 
 	if info.IsDir() {
 		return false
 	}
+
 	return true
 }
