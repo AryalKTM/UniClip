@@ -37,6 +37,6 @@ func run(window *app.Window) error {
 			eventType.Frame(graphicsContext.Ops)
 		case app.DestroyEvent:
 			os.Exit(0)
+		}
 	}
-}
 }
