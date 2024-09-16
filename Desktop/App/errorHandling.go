@@ -19,8 +19,3 @@ func debug(a ...interface{}) {
 		fmt.Println("verbose:", a)
 	}
 }
-
-
-func removeElemFromSlice(slice []string, i int) []string {
-	return append(slice[:i], slice[i+1:]...)
-}
