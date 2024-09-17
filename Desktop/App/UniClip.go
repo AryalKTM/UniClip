@@ -121,7 +121,7 @@ func main() {
 						return
 					}
 					fmt.Println("Connected to device at " + c.RemoteAddr().String())
-					go HandleClient(c)
+					HandleClient(c)
 				}
 			}),
 			fyne.NewMenuItem("Connect to Server", func() {
@@ -135,10 +135,9 @@ func main() {
 					handleError(err)
 					return
 				}
-				defer func() { _ = c.Close() }()
 				fmt.Println("Connected to the clipboard")
 				go MonitorSentClips(bufio.NewReader(c))
-				MonitorLocalClip(bufio.NewWriter(c))
+				go MonitorLocalClip(bufio.NewWriter(c))
 			}),
 			fyne.NewMenuItem("Settings", func() {
 				clipSyncWindow.Show()
