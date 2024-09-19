@@ -36,7 +36,7 @@ public class ClipboardSyncFileTransferTrayApp {
     private static void setupSystemTray() {
         SystemTray tray = SystemTray.getSystemTray();
         // Create an icon for the system tray (use appropriate image path)
-        Image image = Toolkit.getDefaultToolkit().getImage("./icon.png");
+        Image image = Toolkit.getDefaultToolkit().getImage("icon.gif");
         trayIcon = new TrayIcon(image, "Clipboard Sync");
 
         trayIcon.setImageAutoSize(true);

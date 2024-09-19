@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';  // For Clipboard
 import 'package:path_provider/path_provider.dart';  // For getting the Downloads directory
-import 'dart:typed_data';  // For handling file data
+import 'package:receive_sharing_intent_plus/receive_sharing_intent_plus.dart';  // Updated import
 
-void main() => runApp(MulticastApp());
+void main() => runApp(const MulticastApp());
 
 class MulticastApp extends StatefulWidget {
+  const MulticastApp({super.key});
+
   @override
   _MulticastAppState createState() => _MulticastAppState();
 }
@@ -15,16 +17,44 @@ class MulticastApp extends StatefulWidget {
 class _MulticastAppState extends State<MulticastApp> {
   List<MessageData> messages = [];
   RawDatagramSocket? _socket;
+  StreamSubscription? _intentDataStreamSubscription;
 
   @override
   void initState() {
     super.initState();
     _startListening();
+
+    // Listen for shared text via Share-Sheet using receive_sharing_intent_plus
+    _intentDataStreamSubscription = ReceiveSharingIntentPlus.getTextStream().listen((String? sharedText) {
+      if (sharedText != null) {
+        _sendMessage('TEXT:$sharedText');
+        setState(() {
+          messages.add(MessageData(id: 'Shared', content: sharedText));
+        });
+      }
+    }, onError: (err) {
+      print("Error in getTextStream: $err");
+    });
+
+    // Listen for shared files via Share-Sheet using receive_sharing_intent_plus
+    _intentDataStreamSubscription = ReceiveSharingIntentPlus.getMediaStream().listen((List<SharedMediaFile>? sharedFiles) {
+      if (sharedFiles != null && sharedFiles.isNotEmpty) {
+        for (var file in sharedFiles) {
+          _sendMessage('FILE:${file.path}');
+          setState(() {
+            messages.add(MessageData(id: 'Shared', content: 'File: ${file.path}'));
+          });
+        }
+      }
+    }, onError: (err) {
+      print("Error in getMediaStream: $err");
+    });
   }
 
   @override
   void dispose() {
     _socket?.close();
+    _intentDataStreamSubscription?.cancel();
     super.dispose();
   }
 
@@ -57,6 +87,16 @@ class _MulticastAppState extends State<MulticastApp> {
         }
       }
     });
+  }
+
+  void _sendMessage(String message) {
+    const multicastAddress = '230.0.0.1';
+    const port = 12345;
+
+    if (_socket != null) {
+      List<int> data = message.codeUnits;
+      _socket!.send(data, InternetAddress(multicastAddress), port);
+    }
   }
 
   String _extractId(String message) {
@@ -121,7 +161,7 @@ class _MulticastAppState extends State<MulticastApp> {
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Copied to clipboard')),
+      const SnackBar(content: Text('Copied to clipboard')),
     );
   }
 
@@ -181,62 +221,78 @@ class _MulticastAppState extends State<MulticastApp> {
         appBar: AppBar(
           title: const Text('ClipSync', style: TextStyle(color: Color(0xFFe6af2c)),),
         ),
-        body: ListView.builder(
-          itemCount: messages.length,
-          itemBuilder: (context, index) {
-            return Container(
-              margin: EdgeInsets.symmetric(vertical: 4.0), // Reduced vertical margin
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Card(
-                  color: Color(0xFF04235b),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 0,  // Ensure no shadow
-                  child: ExpansionTile(
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _getSnippet(messages[index].content),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+        body: Column(
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                const dataToSend = 'Hello from ClipSync!';
+                _sendMessage('TEXT:$dataToSend');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Message sent via multicast')),
+                );
+              },
+              child: const Text('Send Message'),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: messages.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4.0), // Reduced vertical margin
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Card(
+                        color: const Color(0xFF04235b),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        Row(
+                        elevation: 0,  // Ensure no shadow
+                        child: ExpansionTile(
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _getSnippet(messages[index].content),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: () => _copyToClipboard(messages[index].content),
+                                    icon: const Icon(Icons.copy, color: Color(0xFFe6af2c)),
+                                    tooltip: 'Copy to Clipboard',
+                                  ),
+                                  IconButton(
+                                    onPressed: () => _deleteMessage(index),
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    tooltip: 'Delete',
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                           children: [
-                            IconButton(
-                              onPressed: () => _copyToClipboard(messages[index].content),
-                              icon: Icon(Icons.copy, color: Color(0xFFe6af2c)),
-                              tooltip: 'Copy to Clipboard',
-                            ),
-                            IconButton(
-                              onPressed: () => _deleteMessage(index),
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              tooltip: 'Delete',
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text(
+                                messages[index].content,
+                                style: const TextStyle(color: Colors.white),
+                              ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          messages[index].content,
-                          style: const TextStyle(color: Colors.white),
-                        ),
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
