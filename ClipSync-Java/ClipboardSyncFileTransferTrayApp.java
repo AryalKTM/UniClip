@@ -25,7 +25,6 @@ public class ClipboardSyncFileTransferTrayApp {
                 System.exit(1);
             }
 
-            // Setup the system tray icon and menu
             setupSystemTray();
 
         } catch (Exception e) {
@@ -35,29 +34,23 @@ public class ClipboardSyncFileTransferTrayApp {
 
     private static void setupSystemTray() {
         SystemTray tray = SystemTray.getSystemTray();
-        // Create an icon for the system tray (use appropriate image path)
         Image image = Toolkit.getDefaultToolkit().getImage("icon.gif");
         trayIcon = new TrayIcon(image, "Clipboard Sync");
 
         trayIcon.setImageAutoSize(true);
 
-        // Create a popup menu for the tray icon
         PopupMenu popupMenu = new PopupMenu();
 
         MenuItem startItem = new MenuItem("Start Sync");
         MenuItem stopItem = new MenuItem("Stop Sync");
         MenuItem exitItem = new MenuItem("Exit");
 
-        // Start syncing on menu item click
         startItem.addActionListener(e -> startClipboardSync());
 
-        // Stop syncing on menu item click
         stopItem.addActionListener(e -> stopClipboardSync());
 
-        // Exit the app
         exitItem.addActionListener(e -> System.exit(0));
 
-        // Add menu items to the popup menu
         popupMenu.add(startItem);
         popupMenu.add(stopItem);
         popupMenu.addSeparator();
@@ -66,14 +59,13 @@ public class ClipboardSyncFileTransferTrayApp {
         trayIcon.setPopupMenu(popupMenu);
 
         try {
-            tray.add(trayIcon); // Add tray icon to system tray
+            tray.add(trayIcon);
         } catch (AWTException e) {
             System.err.println("TrayIcon could not be added.");
             e.printStackTrace();
         }
     }
 
-    // Starts the clipboard sync process
     private static void startClipboardSync() {
         if (isRunning) {
             showTrayMessage("Clipboard sync is already running.");
@@ -86,26 +78,22 @@ public class ClipboardSyncFileTransferTrayApp {
         pool = Executors.newFixedThreadPool(2);
     
         try {
-            // Setup multicast socket to join the group
             socket = new MulticastSocket(PORT);
             group = InetAddress.getByName(MULTICAST_GROUP);
             socket.joinGroup(group);
     
-            // Get the device's hostname or IP address for identification
-            String deviceName = InetAddress.getLocalHost().getHostName(); // You could also use IP address
+            String deviceName = InetAddress.getLocalHost().getHostName();
             String deviceId = "ID:" + deviceName;
     
-            // Send a JOIN message with the device name
             String joinMessage = deviceId + " JOIN:" + deviceName;
-            sendMessage(joinMessage); // Send JOIN message to notify other devices
+            sendMessage(joinMessage);
     
             Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
     
-            // Thread to monitor clipboard changes and send data
+
             pool.execute(() -> {
                 while (isRunning) {
                     try {
-                        // Get clipboard contents
                         Transferable transferable = clipboard.getContents(null);
     
                         if (transferable != null && transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
@@ -114,22 +102,22 @@ public class ClipboardSyncFileTransferTrayApp {
                             if (!fileList.isEmpty()) {
                                 File file = fileList.get(0);
                                 String message = deviceId + " FILE:" + file.getName();
-                                sendFile(file, message); // Send the file if detected
+                                sendFile(file, message);
                             }
                         } else if (transferable != null && transferable.isDataFlavorSupported(DataFlavor.stringFlavor)) {
                             String clipboardData = (String) transferable.getTransferData(DataFlavor.stringFlavor);
                             File file = new File(clipboardData);
                             if (file.exists() && file.isFile()) {
                                 String message = deviceId + " FILE:" + file.getName();
-                                sendFile(file, message); // Send file if clipboard contains a file path
+                                sendFile(file, message);
                             } else if (!clipboardData.equals(lastClipboardData)) {
                                 lastClipboardData = clipboardData;
                                 String message = deviceId + " TEXT:" + clipboardData;
-                                sendMessage(message); // Send text clipboard data
+                                sendMessage(message);
                             }
                         }
     
-                        Thread.sleep(1000); // Check clipboard changes every second
+                        Thread.sleep(1000);
     
                     } catch (UnsupportedFlavorException e) {
                         showTrayMessage("Unsupported clipboard content: " + e.getMessage());
@@ -139,22 +127,19 @@ public class ClipboardSyncFileTransferTrayApp {
                 }
             });
     
-            // Thread to receive clipboard changes or file data
             pool.execute(() -> {
                 while (isRunning) {
                     try {
-                        byte[] buffer = new byte[1024 * 64]; // Buffer for receiving file data
+                        byte[] buffer = new byte[1024 * 64];
                         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                         socket.receive(packet);
             
                         String receivedMessage = new String(packet.getData(), 0, packet.getLength());
             
-                        // Extract the device ID from the message
                         String[] parts = receivedMessage.split(" ", 2);
                         String senderId = parts[0]; // Get sender ID (e.g., "ID:device-name")
                         String content = parts.length > 1 ? parts[1] : "";  // Get the actual message content
             
-                        // Ignore the message if it's from the same device
                         if (senderId.equals(deviceId)) {
                             continue;
                         }
@@ -201,7 +186,6 @@ public class ClipboardSyncFileTransferTrayApp {
         }
     }
     
-    // Send file over multicast
     private static void sendFile(File file, String message) {
         try {
             byte[] fileData = Files.readAllBytes(file.toPath());
@@ -215,7 +199,6 @@ public class ClipboardSyncFileTransferTrayApp {
         }
     }
 
-    // Stops the clipboard sync process
     private static void stopClipboardSync() {
         if (!isRunning) {
             showTrayMessage("Clipboard sync is not running.");
@@ -237,7 +220,6 @@ public class ClipboardSyncFileTransferTrayApp {
         }
     }
 
-    // Send message over multicast
     private static void sendMessage(String message) {
         try {
             DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), group, PORT);
@@ -248,7 +230,6 @@ public class ClipboardSyncFileTransferTrayApp {
         }
     }
 
-    // Get the Downloads folder for saving received files
     private static File getDownloadsFolder() {
         String userHome = System.getProperty("user.home");
         File downloadsFolder = new File(userHome, "Downloads");
@@ -258,7 +239,6 @@ public class ClipboardSyncFileTransferTrayApp {
         return downloadsFolder;
     }
 
-    // Show a notification message in the system tray
     private static void showTrayMessage(String message) {
         if (trayIcon != null) {
             trayIcon.displayMessage("Clipboard Sync", message, TrayIcon.MessageType.INFO);
