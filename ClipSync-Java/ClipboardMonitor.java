@@ -12,7 +12,6 @@ public class ClipboardMonitor {
     public void startMonitoring(ClipboardListener listener) {
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
-        // Create a thread to monitor the clipboard continuously
         new Thread(() -> {
             while (true) {
                 try {
@@ -22,7 +21,6 @@ public class ClipboardMonitor {
                         listener.onClipboardChange(currentContent);
                     }
 
-                    // Sleep for a short time to prevent high CPU usage
                     Thread.sleep(1000);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -31,7 +29,6 @@ public class ClipboardMonitor {
         }).start();
     }
 
-    // Get the current clipboard content
     private String getClipboardContent(Clipboard clipboard) {
         try {
             Transferable content = clipboard.getContents(null);
@@ -44,7 +41,6 @@ public class ClipboardMonitor {
         return "";
     }
 
-    // Set new content to the clipboard
     public static void setClipboardContent(String content) {
         StringSelection stringSelection = new StringSelection(content);
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();

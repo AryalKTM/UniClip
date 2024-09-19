@@ -42,7 +42,7 @@ class _MulticastAppState extends State<MulticastApp> {
         for (var file in sharedFiles) {
           File fileObject = File(file.path);
           fileObject.readAsBytes().then((fileData) {
-            String message = 'FILE:${file.path}:${String.fromCharCodes(fileData)}'; // Ensure proper message format
+            String message = 'FILE:${file.path}:${String.fromCharCodes(fileData)}';
             _sendMessage(message);
             setState(() {
               messages.add(MessageData(id: 'Shared', content: 'File: ${file.path}'));
@@ -103,12 +103,12 @@ class _MulticastAppState extends State<MulticastApp> {
       try {
         List<int> data = message.codeUnits;
         _socket!.send(data, InternetAddress(multicastAddress), port);
-        print('Message sent: $message'); // Log the sent message for debugging
+        print('Message sent: $message');
       } catch (e) {
-        print('Error sending message: $e'); // Log errors for debugging
+        print('Error sending message: $e');
       }
     } else {
-      print('Socket is not initialized'); // Log if socket is not initialized
+      print('Socket is not initialized');
     }
   }
 
@@ -183,7 +183,6 @@ class _MulticastAppState extends State<MulticastApp> {
   }
 
   String _getSnippet(String content) {
-    // Return the first 50 characters as a snippet, or the whole content if it's shorter
     return content.length > 50 ? '${content.substring(0, 50)}...' : content;
   }
 
