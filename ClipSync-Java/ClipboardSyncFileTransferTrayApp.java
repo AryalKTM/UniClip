@@ -12,6 +12,7 @@ public class ClipboardSyncFileTransferTrayApp {
     private static final int PORT = 12345;
     private static final String MULTICAST_GROUP = "230.0.0.1";
     private static String lastClipboardData = "";
+    private static File lastClipboardFile = null;
     private static boolean isRunning = false;
     private static TrayIcon trayIcon;
     private static ExecutorService pool;
@@ -101,8 +102,11 @@ public class ClipboardSyncFileTransferTrayApp {
                             List<File> fileList = (List<File>) transferable.getTransferData(DataFlavor.javaFileListFlavor);
                             if (!fileList.isEmpty()) {
                                 File file = fileList.get(0);
-                                String message = deviceId + " FILE:" + file.getName();
-                                sendFile(file, message);
+                                if (!file.equals(lastClipboardFile)) {
+                                    lastClipboardFile = file;
+                                    String message = deviceId + " FILE:" + file.getName();
+                                    sendFile(file, message);
+                                }
                             }
                         } else if (transferable != null && transferable.isDataFlavorSupported(DataFlavor.stringFlavor)) {
                             String clipboardData = (String) transferable.getTransferData(DataFlavor.stringFlavor);
