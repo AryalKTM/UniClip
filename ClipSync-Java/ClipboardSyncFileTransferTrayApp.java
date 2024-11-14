@@ -168,7 +168,7 @@ public class ClipboardSyncFileTransferTrayApp {
                             File receivedFile = new File(downloadsFolder, fileName);
                             Files.write(receivedFile.toPath(), fileData);
             
-                            showTrayMessage("File received: " + fileName);
+                            // showTrayMessage("File received: " + fileName);
                         } else if (content.startsWith("JOIN:")) {
                             // Handle JOIN message
                             String connectedDeviceName = content.substring(5);
