@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".MainActivity">
+
+    <!-- TextView to Display Received Messages -->
+    <TextView
+        android:id="@+id/textViewReceivedMessages"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp"
+        android:background="#E0E0E0"
+        android:text="Waiting for messages..."
+        android:scrollbars="vertical"
+        android:gravity="start|top"
+        android:layout_marginTop="16dp"
+        android:overScrollMode="ifContentScrolls" />
+
+</RelativeLayout>

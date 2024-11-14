@@ -233,16 +233,6 @@ class _MulticastAppState extends State<MulticastApp> {
         ),
         body: Column(
           children: [
-            ElevatedButton(
-              onPressed: () {
-                const dataToSend = 'Hello from ClipSync!';
-                _sendMessage('TEXT:$dataToSend');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Message sent via multicast')),
-                );
-              },
-              child: const Text('Send Message'),
-            ),
             Expanded(
               child: ListView.builder(
                 itemCount: messages.length,

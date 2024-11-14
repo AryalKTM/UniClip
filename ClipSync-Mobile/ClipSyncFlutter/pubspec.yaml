@@ -38,6 +38,7 @@ dependencies:
 
   path_provider: any
   receive_sharing_intent_plus: any
+  udp: ^5.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

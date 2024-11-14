@@ -173,7 +173,7 @@ public class ClipboardSyncFileTransferTrayApp {
                             File receivedFile = new File(downloadsFolder, fileName);
                             Files.write(receivedFile.toPath(), fileData);
             
-                            // showTrayMessage("File received: " + fileName);
+                            showTrayMessage("File received: " + fileName);
                         } else if (content.startsWith("JOIN:")) {
                             // Handle JOIN message
                             String connectedDeviceName = content.substring(5);
@@ -197,7 +197,7 @@ public class ClipboardSyncFileTransferTrayApp {
             message = message + ":" + new String(fileData);
             sendMessage(message);
     
-            // showTrayMessage("File sent: " + file.getName());
+            showTrayMessage("File sent: " + file.getName());
     
         } catch (Exception e) {
             showTrayMessage("Error sending file: " + e.getMessage());
