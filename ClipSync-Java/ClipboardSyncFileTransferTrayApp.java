@@ -25,9 +25,7 @@ public class ClipboardSyncFileTransferTrayApp {
                 System.err.println("SystemTray is not supported on this platform.");
                 System.exit(1);
             }
-
             setupSystemTray();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
