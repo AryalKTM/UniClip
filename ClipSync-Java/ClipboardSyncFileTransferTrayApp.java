@@ -192,7 +192,7 @@ public class ClipboardSyncFileTransferTrayApp {
             message = message + ":" + new String(fileData);
             sendMessage(message);
     
-            showTrayMessage("File sent: " + file.getName());
+            // showTrayMessage("File sent: " + file.getName());
     
         } catch (Exception e) {
             showTrayMessage("Error sending file: " + e.getMessage());
