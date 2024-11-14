@@ -112,8 +112,11 @@ public class ClipboardSyncFileTransferTrayApp {
                             String clipboardData = (String) transferable.getTransferData(DataFlavor.stringFlavor);
                             File file = new File(clipboardData);
                             if (file.exists() && file.isFile()) {
-                                String message = deviceId + " FILE:" + file.getName();
-                                sendFile(file, message);
+                                if (!file.equals(lastClipboardFile)) {
+                                    lastClipboardFile = file;
+                                    String message = deviceId + " FILE:" + file.getName();
+                                    sendFile(file, message);
+                                }
                             } else if (!clipboardData.equals(lastClipboardData)) {
                                 lastClipboardData = clipboardData;
                                 String message = deviceId + " TEXT:" + clipboardData;
