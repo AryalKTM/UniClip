@@ -59,7 +59,6 @@ func main() {
 	portEntry := widget.NewEntry()
 	portEntry.SetPlaceHolder("Enter Port")
 
-	// Create a button to update the IP address and port in the database
 	updateButton := widget.NewButton("Save Address", func() {
 		ip := ipEntry.Text
 		port := portEntry.Text
@@ -105,7 +104,7 @@ func main() {
 				if port > 0 {
 					listenPortString = ":" + strconv.Itoa(port)
 				}
-				l, err := net.Listen("tcp4", listenPortString) //nolint // complains about binding to all interfaces
+				l, err := net.Listen("tcp4", listenPortString)
 				if err != nil {
 					handleError(err)
 					return
@@ -213,4 +212,9 @@ func showErrorDialog(window fyne.Window, message string) {
 func showSuccessDialog(window fyne.Window, message string) {
 	fullMessage := fmt.Sprintf("%s. \nRestart ClipSync to Apply Changes.", message)
 	dialog.NewInformation("Success", fullMessage, window).Show()
+}
+
+func showServerStartedDialog(window fyne.Window, message string) {
+	fullMessage := fmt.Sprintf("Server Started at Port: %s:%d", getOutboundIP().String(), port)
+	dialog.NewInformation("Server Started", fullMessage, window).Show()
 }
