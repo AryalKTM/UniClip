@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// MonitorLocalClip monitors the local clipboard for changes
 func MonitorLocalClip(w *bufio.Writer) {
 	for {
 		localClipboard = getLocalClip()
@@ -29,7 +28,6 @@ func MonitorLocalClip(w *bufio.Writer) {
 	}
 }
 
-// MonitorSentClips monitors the received clips or files from the server
 func MonitorSentClips(r *bufio.Reader) {
 	var foreignClipboard string
 	var foreignClipboardBytes []byte
@@ -47,7 +45,6 @@ func MonitorSentClips(r *bufio.Reader) {
 
 		switch streamType {
 		case 0x00:
-			// Clipboard text received
 			err := gob.NewDecoder(r).Decode(&foreignClipboardBytes)
 			if err != nil {
 				if err == io.EOF {
@@ -57,7 +54,6 @@ func MonitorSentClips(r *bufio.Reader) {
 				continue
 			}
 
-			// Decrypt if needed
 			if secure {
 				foreignClipboardBytes, err = decrypt(password, foreignClipboardBytes)
 				if err != nil {
@@ -84,7 +80,6 @@ func MonitorSentClips(r *bufio.Reader) {
 			}
 
 		case 0x01:
-			// File received
 			var fileNameBytes []byte
 			err := gob.NewDecoder(r).Decode(&fileNameBytes)
 			if err != nil {
@@ -114,7 +109,6 @@ func MonitorSentClips(r *bufio.Reader) {
 				}
 			}
 
-			// Determine the download path based on the OS
 			switch runtime.GOOS {
 			case "windows":
 				downloadPath = filepath.Join(os.Getenv("USERPROFILE"), "Downloads", fileName)
@@ -139,7 +133,6 @@ func MonitorSentClips(r *bufio.Reader) {
 	}
 }
 
-// sendClipboard compresses, encrypts, and sends clipboard or file content
 func sendClipboard(w *bufio.Writer, clipboard string) error {
 	var clipboardBytes []byte
 	var err error
@@ -147,7 +140,6 @@ func sendClipboard(w *bufio.Writer, clipboard string) error {
 
 	trimmedPath := strings.Trim(clipboard, `"`)
 	if isValidFilePath(trimmedPath) {
-		// Send file
 		file, err := os.Open(trimmedPath)
 		if err != nil {
 			return err
@@ -173,7 +165,6 @@ func sendClipboard(w *bufio.Writer, clipboard string) error {
 
 		clipboardBytes = fileData
 	} else {
-		// Send clipboard text
 		streamType = 0x00
 		err = w.WriteByte(streamType)
 		if err != nil {
@@ -197,12 +188,10 @@ func sendClipboard(w *bufio.Writer, clipboard string) error {
 	return w.Flush()
 }
 
-// getLocalClip gets the current content of the local clipboard
 func getLocalClip() string {
 	return runGetClipCommand()
 }
 
-// setLocalClip sets the clipboard content to the provided string
 func setLocalClip(s string) {
 	var copyCmd *exec.Cmd
 	switch runtime.GOOS {
@@ -241,7 +230,6 @@ func setLocalClip(s string) {
 	}
 }
 
-// getLinuxCopyCmd returns the appropriate command to set the clipboard in Linux
 func getLinuxCopyCmd() *exec.Cmd {
 	if _, err := exec.LookPath("xclip"); err == nil {
 		return exec.Command("xclip", "-in", "-selection", "clipboard")
@@ -255,7 +243,6 @@ func getLinuxCopyCmd() *exec.Cmd {
 	return nil
 }
 
-// runGetClipCommand runs the command to get the current clipboard content
 func runGetClipCommand() string {
 	var cmd *exec.Cmd
 
@@ -284,7 +271,6 @@ func runGetClipCommand() string {
 	return string(out)
 }
 
-// getLinuxPasteCmd returns the appropriate command to get the clipboard content in Linux
 func getLinuxPasteCmd() *exec.Cmd {
 	if _, err := exec.LookPath("xclip"); err == nil {
 		return exec.Command("xclip", "-out", "-selection", "clipboard")
