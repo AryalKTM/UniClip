@@ -104,7 +104,6 @@ public class ClipboardSyncFileTransferTrayApp {
                                 DataFlavor.javaFileListFlavor
                             )
                         ) {
-                            @SuppressWarnings("unchecked")
                             List<File> fileList = (List<
                                     File
                                 >) transferable.getTransferData(
@@ -183,7 +182,6 @@ public class ClipboardSyncFileTransferTrayApp {
                         }
 
                         if (content.startsWith("TEXT:")) {
-                            // Handle received text clipboard data
                             String clipboardData = content.substring(5);
                             if (!clipboardData.equals(lastClipboardData)) {
                                 lastClipboardData = clipboardData;
@@ -195,7 +193,6 @@ public class ClipboardSyncFileTransferTrayApp {
                                     .setContents(selection, null);
                             }
                         } else if (content.startsWith("FILE:")) {
-                            // Handle received file data
                             String[] fileInfo = content.split(":", 3); // We expect 3 parts: FILE, file name, file data
 
                             if (fileInfo.length < 3) {
